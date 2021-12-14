@@ -1,5 +1,6 @@
 import os
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from src.utils import get_evaluation
@@ -15,6 +16,7 @@ from src.bert_han_g import HierAttNet
 from src.bert_han_sg_g import HierGraphAttNet 
 from torch.nn import CosineSimilarity
 from src.MUSEAttention import MUSEAttention
+from src.gmlp import gMLP
 models_class = {'Bert_avg':Bert_cls_av, 'Bert_han_g':HierAttNet, 'Bert_han_sg_g':HierGraphAttNet}
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -115,20 +117,11 @@ def test(opt):
     te_true_post_ls = []
     scores=[]
     
-    df = pd.read_csv('/content/content/data/test.csv')
-    sent = 256*3
-    print(df.loc[sent])
-    text = sent_tokenize(df.loc[sent]['0'])
-    summ = sent_tokenize(df.loc[sent]['summary'])
-    print("text length: ", len(text))
-    print("summ length: ", len(summ))
-    # print("text: ",text[3])
-    # print(text[6])
-    # print(text[7])
-    # print("Summ: ", df.loc[sent]['summary'])
+    mlp_graph = nn.Linear(4* 50, 2*50).cuda()
+    gmlp = gMLP(len_sen=11,dim=100,d_ff=100)
     cos = CosineSimilarity()
-    total, count = 0, 0
-    attention = MUSEAttention(d_model=100, d_k=100, d_v=100, h=8)
+    # total, count = 0, 0
+    # attention = MUSEAttention(d_model=100, d_k=100, d_v=100, h=8)
     for te_feature1, te_feature2, te_label, _ in test_generator:
         num_sample = len(te_label)
         if torch.cuda.is_available():
@@ -140,48 +133,16 @@ def test(opt):
             te_predictions = model(te_feature1, te_feature2)
             output_1 = model.encode(te_feature1)
             output_2 = model.encode(te_feature2)
-
-            # attention_x = attention(output_1, output_2, output_1)
-            # attention_y = attention(output_2, output_1, output_2)
-            # output_x = torch.cat((output_1, attention_y), dim=2)
-            # output_y = torch.cat((output_2, attention_x), dim=2)
-            # print("output_x ", output_x.shape)
-
-            output_1, output_2 = model.graph_match(output_1, output_2) 
-            output_1 = output_1.permute(1,0,2)
-            doc = output_2
-            # print("output1: ", output_1.shape)
-            # print("output2: ", output_2.shape)
-            output_2 = output_2[:,-1,:].squeeze()
-            doc1 = output_1[-1,0,: ].unsqueeze(0)
-            doc2 = output_2[0][:].unsqueeze(0)
-            sim = 1 if cos(doc1, doc2) > 0.5 else 0
-            if(sim==te_label[0]):
-              count = count + 1
-            # print("Cos sim: ", sim)
-            # print("Label: ", te_label[0])
-            # print(sim==te_label[0])
-            doc = doc[0][:][:]
-            muls = []
-            exps = []
-            for i in range(doc.shape[0]):
-              mul = torch.matmul(doc[i], doc1.squeeze())
-              muls.append(mul)
-              exps.append(torch.exp(muls[i]))
-            exps = torch.tensor(exps)
-            score = []
-            for i in range(doc.shape[0]):
-              score.append((i, float(exps[i]/torch.sum(exps))))
-            score = Sort_Tuple(score)
-            scores.append(score)
-            print(score)              
-            # for score in scores:
-
-            # score = exps[-1]/torch.sum(exps)
-            # sim = 1 if score >0.5 else 0
-            # if(sim==te_label[0]):
-            #   count=count+1
-            total = total + 1
+            attention_x = gmlp(output_1)
+            attention_y = gmlp(output_2)
+            print("att x ", attention_x.shape)
+            output_x = torch.cat((output_1, attention_y), dim=2)
+            output_y = torch.cat((output_2, attention_x), dim=2)
+            #output_x = input_1+attention_y
+            #output_y = input_2+attention_x
+            output_x = mlp_graph(output_x)
+            output_y = mlp_graph(output_y)
+            print("output x ", output_x.shape)
             
             doc_te_predictions = te_predictions[-1]
             pos_predictions = te_predictions[:-1]
