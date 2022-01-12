@@ -136,7 +136,7 @@ class SpatialGatingUnit(nn.Module):
         # split tensor into two parts or we can split only the last row
         res, gate = x.chunk(2, dim = -1)
         gate = self.norm(gate)
-        # gate = gate.permute(1,0,2)
+        gate = gate.permute(1,0,2)
         weight, bias = self.weight, self.bias
 
         if self.circulant_matrix:
@@ -168,7 +168,7 @@ class SpatialGatingUnit(nn.Module):
         
         gate = rearrange(gate, 'b h n d -> b n (h d)')
         
-        # gate = gate.permute(1,0,2)
+        gate = gate.permute(1,0,2)
         # add tiny attention to vector
         if exists(gate_res):
             gate = gate + gate_res
