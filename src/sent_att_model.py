@@ -18,13 +18,11 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
 class SentAttNet(nn.Module):
-    def __init__(self, sent_hidden_size=50, word_hidden_size=50):
+    def __init__(self, max_word_length=33, max_sent_length=10, sent_hidden_size=50, word_hidden_size=50):
         super(SentAttNet, self).__init__()
         self.vector_size = sent_hidden_size
-        self.sent_weight = nn.Parameter(torch.Tensor(sent_hidden_size, sent_hidden_size))
-        self.sent_bias = nn.Parameter(torch.Tensor(1, sent_hidden_size))
-        self.context_weight = nn.Parameter(torch.Tensor(sent_hidden_size, 1))
-        self.gmlp = gMLP(num_tokens=0, dim=self.vector_size, seq_len=330, ff_mult=2, heads=1, attn_dim=32, depth=1, circulant_matrix = False)
+        self.seq_len = max_sent_length * max_word_length
+        self.gmlp = gMLP(num_tokens=0, dim=sent_hidden_size, seq_len=self.seq_len, ff_mult=2, heads=1, attn_dim=32, depth=1, circulant_matrix = False)
         # self.gru = nn.GRU(2 * word_hidden_size, sent_hidden_size, bidirectional=True)
         # self.sent_softmax = nn.Softmax()
         # self.fc_softmax = nn.Softmax()

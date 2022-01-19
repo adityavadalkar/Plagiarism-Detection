@@ -8,7 +8,7 @@ from src.gmlp import gMLP
 import csv
 
 class WordAttNet(nn.Module):
-    def __init__(self, word2vec_path, tune, hidden_size=50):
+    def __init__(self, word2vec_path, tune, max_word_length=33, hidden_size=50):
         super(WordAttNet, self).__init__()
         dict = pd.read_csv(filepath_or_buffer=word2vec_path, header=None, sep=" ", quoting=csv.QUOTE_NONE).values[:, 1:]
         dict_len, embed_size = dict.shape
@@ -20,7 +20,7 @@ class WordAttNet(nn.Module):
         # self.word_weight = nn.Parameter(torch.Tensor(hidden_size, hidden_size))
         # self.word_bias = nn.Parameter(torch.Tensor(1, hidden_size))
         # self.context_weight = nn.Parameter(torch.Tensor(hidden_size, 1))
-        self.gmlp = gMLP(num_tokens=0, dim=self.vector_size, seq_len=33, ff_mult=2, heads=1, attn_dim=64, depth=1, circulant_matrix = False)
+        self.gmlp = gMLP(num_tokens=0, dim=self.vector_size, seq_len=max_word_length, ff_mult=2, heads=1, attn_dim=64, depth=1, circulant_matrix = False)
         self.lookup = nn.Embedding(num_embeddings=dict_len, embedding_dim=embed_size).from_pretrained(dict,freeze=tune)
         # self.gru = nn.GRU(embed_size, hidden_size, bidirectional=True)
         # self._create_weights(mean=0.0, std=0.05)

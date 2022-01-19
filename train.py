@@ -99,6 +99,7 @@ def train(opt):
   
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=opt.lr)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 7, gamma=0.1, verbose=True)
     best_loss = 1e5
     best_epoch = 0
     model.train()
@@ -143,6 +144,7 @@ def train(opt):
             sum_updated = 0
  
         #print total train loss
+        # scheduler.step()
         te_loss = sum(loss_ls) / test_set.__len__()
         te_pred = torch.cat(te_pred_ls, 0)
         te_label = np.array(te_label_ls)
@@ -236,5 +238,3 @@ if __name__ == "__main__":
     train(opt)
     localtime = time.asctime( time.localtime(time.time()))
     print(localtime)
-
-

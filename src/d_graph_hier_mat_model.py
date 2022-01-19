@@ -19,8 +19,8 @@ class DHierGraphNet(nn.Module):
         self.sent_hidden_size = sent_hidden_size
         self.max_sent_length = max_sent_length
         self.max_word_length = max_word_length
-        self.word_att_net = WordAttNet(pretrained_word2vec_path, tune, word_hidden_size)
-        self.sent_att_net = SentAttNet(sent_hidden_size, word_hidden_size)
+        self.word_att_net = WordAttNet(pretrained_word2vec_path, tune, self.max_word_length, word_hidden_size)
+        self.sent_att_net = SentAttNet(max_word_length, max_sent_length, sent_hidden_size, word_hidden_size)
         self._init_hidden_state()
 
     def _init_hidden_state(self, last_batch_size=None):
