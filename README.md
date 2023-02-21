@@ -59,6 +59,6 @@ To test the model, run:
 ```
 
 ## Important files
-You can find the modified attention and the dataloader in the src folder in the file called MUSEAttention.py and dataset_bert_4.py respectively. 
+You can find the model in d_graph_hier_mat_model.py and dataloader in the file src/dataset_bert_4.py. 
 
 
