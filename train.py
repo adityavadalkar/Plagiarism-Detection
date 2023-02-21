@@ -14,6 +14,8 @@ import argparse
 import shutil
 import numpy as np
 import time
+import matplotlib.pyplot as plt
+from prettytable import PrettyTable
 seed=42
 random.seed(seed)
 os.environ['PYTHONHASHSEED'] = str(seed)
@@ -97,9 +99,13 @@ def train(opt):
   
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=opt.lr)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 7, gamma=0.1, verbose=True)
     best_loss = 1e5
     best_epoch = 0
     model.train()
+    count_parameters(model)
+    train_losses = []
+    val_losses = []
     num_iter_per_epoch = len(training_generator)
     for epoch in range(opt.num_epoches):
         start_time = time.time()
@@ -111,6 +117,8 @@ def train(opt):
             if torch.cuda.is_available():
                 feature1 = feature1.cuda()
                 feature2 = feature2.cuda()
+                # print("feature1 ",feature1.shape)
+                # print("feature2 ",feature2.shape)
                 label = label.float().cuda()
             optimizer.zero_grad()
             model._init_hidden_state()
@@ -129,12 +137,14 @@ def train(opt):
             print("--- %s seconds ---" % (time.time() - start_time))
             start_time = time.time()
             loss_ls.append(loss * num_sample)
+            train_losses.append(loss.item())
             te_label_ls.extend(label.clone().cpu())
             te_pred_ls.append(predictions.clone().cpu())
             sum_all = 0
             sum_updated = 0
  
         #print total train loss
+        # scheduler.step()
         te_loss = sum(loss_ls) / test_set.__len__()
         te_pred = torch.cat(te_pred_ls, 0)
         te_label = np.array(te_label_ls)
@@ -165,6 +175,7 @@ def train(opt):
                     model._init_hidden_state(num_sample)
                     te_predictions = model(te_feature1,te_feature2)
                 te_loss = criterion(te_predictions, te_label)
+                val_losses.append(te_loss.item())
                 loss_ls.append(te_loss * num_sample)
                 te_label_ls.extend(te_label.clone().cpu())
                 te_pred_ls.append(te_predictions.clone().cpu())
@@ -187,11 +198,20 @@ def train(opt):
                 if param.requires_grad:
                     if name=='fd.weight':
                         print(name,param.data)
+            fig = plt.figure(figsize=(10,5))
+            plt.title("Training and Validation Loss")
+            plt.plot(val_losses,label="val")
+            plt.plot(train_losses,label="train")
+            plt.xlabel("iterations")
+            plt.ylabel("Loss")
+            plt.ylim(0, 1)
+            plt.legend()
+            plt.show()
             model.train()
             if te_loss + opt.es_min_delta < best_loss:
                 best_loss = te_loss
                 best_epoch = epoch
-                torch.save(model, opt.saved_path + os.sep + opt.model_name)
+                torch.save(model, opt.saved_path + os.sep + opt.model_name + '.pt')
                 logger.info('saved model')
 
             # Early stopping
@@ -199,6 +219,17 @@ def train(opt):
                 print("Stop training at epoch {}. The lowest loss achieved is {}".format(epoch, te_loss))
                 break
 
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        table.add_row([name, param])
+        total_params+=param
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 if __name__ == "__main__":
     opt = get_args()
@@ -207,5 +238,3 @@ if __name__ == "__main__":
     train(opt)
     localtime = time.asctime( time.localtime(time.time()))
     print(localtime)
-
-

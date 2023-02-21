@@ -5,6 +5,7 @@ import os
 import torch.nn as nn
 import torch.nn.functional as F
 from src.utils import matrix_mul, element_wise_mul
+from src.gmlp import gMLP
 
 seed=42
 random.seed(seed)
@@ -17,37 +18,38 @@ torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
 
 class SentAttNet(nn.Module):
-    def __init__(self, sent_hidden_size=50, word_hidden_size=50):
+    def __init__(self, max_word_length=33, max_sent_length=10, sent_hidden_size=50, word_hidden_size=50):
         super(SentAttNet, self).__init__()
-
-        self.sent_weight = nn.Parameter(torch.Tensor(2 * sent_hidden_size, 2 * sent_hidden_size))
-        self.sent_bias = nn.Parameter(torch.Tensor(1, 2 * sent_hidden_size))
-        self.context_weight = nn.Parameter(torch.Tensor(2 * sent_hidden_size, 1))
-
-        self.gru = nn.GRU(2 * word_hidden_size, sent_hidden_size, bidirectional=True)
+        self.vector_size = sent_hidden_size
+        self.seq_len = max_sent_length * max_word_length
+        self.gmlp = gMLP(num_tokens=0, dim=sent_hidden_size, seq_len=self.seq_len, ff_mult=2, heads=1, attn_dim=32, depth=1, circulant_matrix = False)
+        # self.gru = nn.GRU(2 * word_hidden_size, sent_hidden_size, bidirectional=True)
         # self.sent_softmax = nn.Softmax()
         # self.fc_softmax = nn.Softmax()
-        self._create_weights(mean=0.0, std=0.05)
+        # self._create_weights(mean=0.0, std=0.05)
 
-    def _create_weights(self, mean=0.0, std=0.05):
-        self.sent_bias.data.normal_(mean,std)
-        self.sent_weight.data.normal_(mean, std)
-        self.context_weight.data.normal_(mean, std)
+    # def _create_weights(self, mean=0.0, std=0.05):
+    #     self.sent_bias.data.normal_(mean,std)
+    #     self.sent_weight.data.normal_(mean, std)
+    #     self.context_weight.data.normal_(mean, std)
 
-    def forward(self, input, hidden_state):
+    def forward(self, input):
 
-        f_output, h_output = self.gru(input, hidden_state)
+        # f_output, h_output = self.gru(input, hidden_state)
+        output = self.gmlp(input)
         #print('------------------>')
         #print(f_output.shape)
-        output = matrix_mul(f_output, self.sent_weight, self.sent_bias)
-        #print(output.shape)
+        # output = matrix_mul(output, self.sent_weight, self.sent_bias)
+        # print("sent gmlp output ",output.shape)
         #print()
-        output = matrix_mul(output, self.context_weight).permute(1, 0)
-        output = F.softmax(output)
-        output = element_wise_mul(f_output, output.permute(1, 0)).squeeze(0)
+        # temp_output = matrix_mul(output, self.context_weight).permute(1,0)
+        # temp_output = F.softmax(temp_output,dim=1)
+        # print("sent temp output ", temp_output.shape)
+        # output = element_wise_mul(output,temp_output.permute(1,0))
+        # print("sent output ", output.shape)
         #output = self.fc(output)
-
-        return output, h_output
+        
+        return output
 
 
 if __name__ == "__main__":
